@@ -1,0 +1,17 @@
+name: Build and deploy frontend
+on:
+  workflow_dispatch:
+  # push:
+  #   paths:
+  #     - frontend/**
+  #     - .github/workflows/frontend.yaml
+  #     - .github/workflows/build-copy.yaml
+  #   # branches:
+  #   #   - master
+
+jobs:
+  build:
+    uses: crystalcoraldsouza/msc-dissertation-ci/.github/workflows/build-copy.yaml@master
+    secrets: inherit
+    with:
+      name: frontend

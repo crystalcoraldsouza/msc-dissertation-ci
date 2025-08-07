@@ -1,0 +1,66 @@
+name: Build and deploy
+on:
+  workflow_call:
+    inputs:
+      name:
+        type: string
+        required: true
+      copy-modules:
+        type: boolean
+      restart:
+        type: boolean
+      dotenv:
+        type: string
+jobs:
+  build:
+    env:
+      SITE: crystal-ai.northeurope.cloudapp.azure.com
+      SSH_HOST: crystal-ai.northeurope.cloudapp.azure.com
+      SSH_USER: web
+      # AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      # # these are only used by mongo express
+      # ME_COOKIESECRET: ${{ secrets.ME_COOKIESECRET }}
+      # ME_SESSIONSECRET: ${{ secrets.ME_SESSIONSECRET }}
+      # ME_PASSWORD: ${{ secrets.ME_PASSWORD }}
+    runs-on:
+      - ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: git.cs.bham.ac.uk:projects-2024-25/cxd426.git
+          ssh-key: ${{ secrets.GITLAB_SSH_PRV }}
+          ref: dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: "npm"
+          cache-dependency-path: "adaptive-context-aware-app/${{ inputs.name }}/package-lock.json"
+      - run: npm ci
+        working-directory: adaptive-context-aware-app/${{ inputs.name }}
+      - name: build
+        run: npm run build
+        working-directory: adaptive-context-aware-app/${{ inputs.name }}
+      # - name: Copy node modules
+      #   if: ${{ inputs.copy-modules }}
+      #   run: cp adaptive-context-aware-app/${{ inputs.name }}/node_modules adaptive-context-aware-app/${{ inputs.name }}/dist/ -a
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          cat > ~/.ssh/deploy_rsa <<EOF
+          ${{ secrets.WEB_USER_SSH_PRV }}
+          EOF
+          chmod 600 ~/.ssh/deploy_rsa
+      - name: Create .env file
+        if: ${{ inputs.dotenv }}
+        run: |
+          echo "${{ inputs.dotenv }}" > adaptive-context-aware-app/${{ inputs.name }}/dist/.env
+      - name: Scp files to server
+        run: |
+          TMP_TAR="$RANDOM.tgz"
+          tar czf "$TMP_TAR" -C "adaptive-context-aware-app/${{ inputs.name }}/dist/" .
+          scp -ri ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "$TMP_TAR" "${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/home/web/"
+          ssh -i ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "${{ env.SSH_USER }}@${{ env.SSH_HOST }}" /home/web/deploy.sh $TMP_TAR ${{ env.SITE }} ${{ inputs.name }}
+      - name: Restart service
+        if: ${{ inputs.restart }}
+        run: |
+          ssh -i ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "${{ env.SSH_USER }}@${{ env.SSH_HOST }}" pm2 restart ${{ inputs.name }}
