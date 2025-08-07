@@ -17,7 +17,8 @@ jobs:
       SITE: crystal-ai.northeurope.cloudapp.azure.com
       SSH_HOST: crystal-ai.northeurope.cloudapp.azure.com
       SSH_USER: web
-      # AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      ADMIN_BYPASS_TOKEN: ${{ secrets.ADMIN_BYPASS_TOKEN }}
       # # these are only used by mongo express
       # ME_COOKIESECRET: ${{ secrets.ME_COOKIESECRET }}
       # ME_SESSIONSECRET: ${{ secrets.ME_SESSIONSECRET }}
