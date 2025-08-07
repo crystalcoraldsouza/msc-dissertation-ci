@@ -7,7 +7,6 @@ on:
   #     - .github/workflows/frontend.yaml
   #     - .github/workflows/build-copy.yaml
   #   # branches:
-  #   #   - master
 
 jobs:
   build:
@@ -24,5 +23,4 @@ jobs:
         MONGODB_URI=mongodb://localhost:27017/chatgpt
         PORT=3008
         GOOGLE_CLIENT_ID=994120527841-ar6rbqnr9i8o7fv1uqc9cmcf956ni3d1.apps.googleusercontent.com
-        ADMIN_BYPASS_TOKEN=$      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
-
+        ADMIN_BYPASS_TOKEN=$ADMIN_BYPASS_TOKEN
