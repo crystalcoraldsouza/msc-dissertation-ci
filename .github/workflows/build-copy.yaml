@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: git.cs.bham.ac.uk:projects-2024-25/cxd426.git
+          repository: git.cs.bham.ac.uk/projects-2024-25/cxd426.git
           ssh-key: ${{ secrets.GITLAB_SSH_PRV }}
           ref: dev
       - uses: actions/setup-node@v4
