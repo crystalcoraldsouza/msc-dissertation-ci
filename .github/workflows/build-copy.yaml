@@ -44,6 +44,9 @@ jobs:
       - name: build
         run: npm run build
         working-directory: adaptive-context-aware-app/${{ inputs.name }}
+        env:
+          VITE_GOOGLE_CLIENT_ID: 994120527841-ar6rbqnr9i8o7fv1uqc9cmcf956ni3d1.apps.googleusercontent.com
+          VITE_BACKEND_URL: /api
       # - name: Copy node modules
       #   if: ${{ inputs.copy-modules }}
       #   run: cp adaptive-context-aware-app/${{ inputs.name }}/node_modules adaptive-context-aware-app/${{ inputs.name }}/dist/ -a
