@@ -25,11 +25,15 @@ jobs:
     runs-on:
       - ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: git.cs.bham.ac.uk/projects-2024-25/cxd426.git
-          ssh-key: ${{ secrets.GITLAB_SSH_PRV }}
-          ref: dev
+      # - uses: actions/checkout@v4
+      #   with:
+      #     repository: git.cs.bham.ac.uk/projects-2024-25/cxd426.git
+      #     ssh-key: ${{ secrets.GITLAB_SSH_PRV }}
+      #     ref: dev
+
+      - run: |
+          git clone https://oauth2:${{ secrets.GITLAB_TOKEN }}@git.cs.bham.ac.uk/projects-2024-25/cxd426.git .
+          git checkout dev
       - uses: actions/setup-node@v4
         with:
           node-version: 24.x
