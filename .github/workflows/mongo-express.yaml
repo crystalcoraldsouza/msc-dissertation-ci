@@ -1,0 +1,47 @@
+name: Build and deploy mongo express
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/mongo-express.yaml
+
+jobs:
+  build:
+    env:
+      SITE: . # This isn't technically part of the app
+      SSH_HOST: crystal-ai.northeurope.cloudapp.azure.com
+      SSH_USER: web
+    runs-on:
+      - ubuntu-latest
+    steps:
+      - run: |
+          git clone https://github.com/mongo-express/mongo-express.git build
+          cd build
+          git reset --hard 96ab411e82ec7d43f09bb3d14fe4ccd4b5bc1f51
+          npm i
+          npm run build
+          cp config.default.js config.js
+          echo "NODE_ENV=production" > .env
+          echo "ME_CONFIG_MONGODB_URL=mongodb://127.0.0.1:27017/adaptive_ui_db" >> .env
+          echo "ME_CONFIG_SITE_COOKIESECRET=${{ secrets.ME_COOKIESECRET }}" >> .env
+          echo "ME_CONFIG_SITE_SESSIONSECRET=${{ secrets.ME_SESSIONSECRET }}" >> .env
+          echo "ME_CONFIG_BASICAUTH_USERNAME=admin"
+          echo "ME_CONFIG_BASICAUTH_PASSWORD=${{ secrets.ME_PASSWORD }}" >> .env
+          echo "ME_CONFIG_SITE_BASEURL=/mongo-express/" >> .env
+          echo "ME_CONFIG_BASICAUTH_ENABLED=true" >> .env
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          cat > ~/.ssh/deploy_rsa <<EOF
+          ${{ secrets.WEB_USER_SSH_PRV }}
+          EOF
+          chmod 600 ~/.ssh/deploy_rsa
+      - name: Scp files to server
+        run: |
+          TMP_TAR="$RANDOM.tgz"
+          tar czf "$TMP_TAR" -C "build" .
+          scp -ri ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "$TMP_TAR" "${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/home/web/"
+          ssh -i ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "${{ env.SSH_USER }}@${{ env.SSH_HOST }}" /home/web/deploy.sh $TMP_TAR $SITE mongo-express
+      - name: Restart service
+        run: |
+          ssh -i ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "${{ env.SSH_USER }}@${{ env.SSH_HOST }}" pm2 restart mongo-express

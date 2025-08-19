@@ -2,25 +2,55 @@ name: Build and deploy backend
 on:
   workflow_dispatch:
   push:
-  #   paths:
-  #     - frontend/**
-  #     - .github/workflows/frontend.yaml
-  #     - .github/workflows/build-copy.yaml
-  #   # branches:
 
 jobs:
   build:
-    uses: crystalcoraldsouza/msc-dissertation-ci/.github/workflows/build-copy.yaml@master
-    secrets: inherit
-    with:
-      name: backend
-      restart: true
-      dotenv: |
+    env:
+      SITE: crystal-ai.northeurope.cloudapp.azure.com
+      SSH_HOST: crystal-ai.northeurope.cloudapp.azure.com
+      SSH_USER: web
+      DOTENV: |
         AZURE_DEPLOYMENT_NAME=gpt-4o
-        AZURE_OPENAI_API_KEY=$AZURE_OPENAI_API_KEY
+        AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }}
         AZURE_OPENAI_ENDPOINT=https://crystal-ai.openai.azure.com
         FRONTEND_URL=http://localhost:3000
         MONGODB_URI=mongodb://localhost:27017/adaptive_ui_db
         PORT=3008
         GOOGLE_CLIENT_ID=994120527841-ar6rbqnr9i8o7fv1uqc9cmcf956ni3d1.apps.googleusercontent.com
-        ADMIN_BYPASS_TOKEN=$ADMIN_BYPASS_TOKEN
+        ADMIN_BYPASS_TOKEN=${{ secrets.ADMIN_BYPASS_TOKEN }}
+
+    runs-on:
+      - ubuntu-latest
+    steps:
+      - run: |
+          git clone https://oauth2:${{ secrets.GITLAB_TOKEN }}@git.cs.bham.ac.uk/projects-2024-25/cxd426.git .
+          git checkout dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: "npm"
+          cache-dependency-path: "adaptive-context-aware-app/backend/package-lock.json"
+      - run: npm ci
+        working-directory: adaptive-context-aware-app/backend
+      - name: build
+        run: npm run build
+        working-directory: adaptive-context-aware-app/backend
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          cat > ~/.ssh/deploy_rsa <<EOF
+          ${{ secrets.WEB_USER_SSH_PRV }}
+          EOF
+          chmod 600 ~/.ssh/deploy_rsa
+      - name: Create .env file
+        run: |
+          echo "${{ env.DOTENV }}" > adaptive-context-aware-app/backend/dist/.env
+      - name: Scp files to server
+        run: |
+          TMP_TAR="$RANDOM.tgz"
+          tar czf "$TMP_TAR" -C "adaptive-context-aware-app/backend/dist/" .
+          scp -ri ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "$TMP_TAR" "${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/home/web/"
+          ssh -i ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "${{ env.SSH_USER }}@${{ env.SSH_HOST }}" /home/web/deploy.sh $TMP_TAR ${{ env.SITE }} backend
+      - name: Restart service
+        run: |
+          ssh -i ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "${{ env.SSH_USER }}@${{ env.SSH_HOST }}" pm2 restart backend

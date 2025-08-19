@@ -1,4 +1,4 @@
-name: Build and deploy frontend
+name: Build and deploy decision service
 on:
   workflow_dispatch:
   push:
@@ -8,24 +8,12 @@ jobs:
       SITE: crystal-ai.northeurope.cloudapp.azure.com
       SSH_HOST: crystal-ai.northeurope.cloudapp.azure.com
       SSH_USER: web
-      VITE_GOOGLE_CLIENT_ID: 994120527841-ar6rbqnr9i8o7fv1uqc9cmcf956ni3d1.apps.googleusercontent.com
-      VITE_BACKEND_URL: /api
     runs-on:
       - ubuntu-latest
     steps:
       - run: |
           git clone https://oauth2:${{ secrets.GITLAB_TOKEN }}@git.cs.bham.ac.uk/projects-2024-25/cxd426.git .
           git checkout dev
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.x
-          cache: "npm"
-          cache-dependency-path: "adaptive-context-aware-app/frontend/package-lock.json"
-      - run: npm ci
-        working-directory: adaptive-context-aware-app/frontend
-      - name: build
-        run: npm run build
-        working-directory: adaptive-context-aware-app/frontend
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -36,6 +24,9 @@ jobs:
       - name: Scp files to server
         run: |
           TMP_TAR="$RANDOM.tgz"
-          tar czf "$TMP_TAR" -C "adaptive-context-aware-app/frontend/dist/" .
+          tar czf "$TMP_TAR" -C "adaptive-context-aware-app/decision-service/" .
           scp -ri ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "$TMP_TAR" "${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/home/web/"
-          ssh -i ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "${{ env.SSH_USER }}@${{ env.SSH_HOST }}" /home/web/deploy.sh $TMP_TAR ${{ env.SITE }} frontend
+          ssh -i ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "${{ env.SSH_USER }}@${{ env.SSH_HOST }}" /home/web/deploy.sh $TMP_TAR ${{ env.SITE }} decision-service
+      - name: Restart service
+        run: |
+          ssh -i ~/.ssh/deploy_rsa -o StrictHostKeyChecking=no "${{ env.SSH_USER }}@${{ env.SSH_HOST }}" pm2 restart decision-service
